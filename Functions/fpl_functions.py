@@ -16,7 +16,7 @@ def double_gameweek_processing(dictionary_1, dictionary_2, config_dictionary):
     \n combined_df (DataFrame): Dataframe containing combined data for the two matches in the gameweek.'''
 
 
-    column_dtype_mapping = config_dictionary["player_data_config"]["double_gameweek_processing"]
+    column_dtype_mapping = config_dictionary["previous_gameweeks_config"]["double_gameweek_processing"]
     columns_to_combine = column_dtype_mapping.keys()
     
     df1 = pd.json_normalize(dictionary_1)

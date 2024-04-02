@@ -139,7 +139,7 @@ for gameweek in range(no_of_gameweeks):
     gameweek_data = pd.concat(player_dataframes)
 
     gameweek_data = gameweek_data.rename(columns= {"element" : "id"})
-    gameweek_data = gameweek_data.astype(config["player_data_config"]["before_calculations"])
+    gameweek_data = gameweek_data.astype(config["previous_gameweeks_config"]["before_calculations"])
 
     # Merging our dataframe with selected columns from the 'general_info' dataframe.
     general_info_columns = fpl_df[["full_name", "team_name", "position", "now_cost", "id"]]
@@ -149,12 +149,47 @@ for gameweek in range(no_of_gameweeks):
     fpl.performance_metric_calculations(dataframe= merged_df)
 
     # Cleaning the database and writing it to a csv.
-    column_order = list(config["player_data_config"]["after_calculations"].keys())
+    column_order = list(config["previous_gameweeks_config"]["after_calculations"].keys())
     merged_df = merged_df[column_order]
-    merged_df = merged_df.fillna(config["player_data_config"]["na_columns"])
-    merged_df = merged_df.astype(config["player_data_config"]["after_calculations"])
+    merged_df = merged_df.fillna(config["previous_gameweeks_config"]["na_columns"])
+    merged_df = merged_df.astype(config["previous_gameweeks_config"]["after_calculations"])
 
     merged_df.to_csv(os.path.join(os.path.dirname(__file__), "Databases", f"GW{gameweek + 1}.csv"), index= False)
     print("Database successfully created.")
+
+
+
+##### RETIRIEVING LIVE GW DATA #####
+# Repeating the process performed in the above block, but for the most recent gameweek.
+current_gameweek = no_of_gameweeks + 1
+current_gameweek_data = requests.get(f"https://fantasy.premierleague.com/api/event/{current_gameweek}/live/")
+
+current_gameweek_data_dict = current_gameweek_data.json()
+
+print(f"Creating database for gameweek {current_gameweek}...")
+
+player_dataframes = []
+for player in range(no_of_players):
+
+    player_df = pd.json_normalize(current_gameweek_data_dict['elements'][player]['stats'])
+    player_df['id'] = current_gameweek_data_dict['elements'][player]['id']
+
+    player_dataframes.append(player_df)
+
+gameweek_data = pd.concat(player_dataframes)
+gameweek_data = gameweek_data.astype(config["current_gameweek_config"]["before_calculations"])
+
+merged_df = pd.merge(gameweek_data, general_info_columns, how="right", on= "id")
+
+fpl.performance_metric_calculations(dataframe= merged_df)
+
+column_order = list(config["previous_gameweeks_config"]["after_calculations"].keys())
+merged_df = merged_df[column_order]
+merged_df = merged_df.fillna(config["current_gameweek_config"]["na_columns"])
+merged_df = merged_df.astype(config["current_gameweek_config"]["after_calculations"])
+
+merged_df.to_csv(os.path.join(os.path.dirname(__file__), "Databases", f"GW{current_gameweek}.csv"), index= False)
+
+print("Database successfully created.")
 
 print("---------- SCRIPT COMPLETED ----------")
