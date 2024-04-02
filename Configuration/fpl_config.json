@@ -35,7 +35,7 @@
     },
 
 
-    "player_data_config" : {
+    "previous_gameweeks_config" : {
 
         "double_gameweek_processing" : {
 
@@ -64,6 +64,98 @@
         "before_calculations" : {
 
             "value" : "int64",
+            "total_points" : "int64",
+            "minutes" : "int64",
+            "starts" : "int64",
+            "goals_scored" : "int64",
+            "expected_goals" : "float64",
+            "assists" : "int64",
+            "expected_assists" : "float64",
+            "goals_conceded" : "int64",
+            "expected_goals_conceded" : "float64",
+            "saves" : "int64",
+            "clean_sheets" : "int64",
+            "id" : "int64"
+
+        },
+
+        "after_calculations" : {
+
+            "full_name" : "object",
+            "team_name" : "object",
+            "position" : "object",
+            "now_cost" : "int64",
+            "total_points" : "int64",
+            "minutes" : "int64",
+            "90s" : "float64",
+            "starts" : "int64",
+            "goals_scored" : "int64",
+            "expected_goals" : "float64",
+            "expected_goals_per_90" : "float64",
+            "assists" : "int64",
+            "expected_assists" : "float64",
+            "expected_assists_per_90" : "float64",
+            "goal_involvements" : "int64",
+            "expected_goal_involvements" : "float64",
+            "expected_goal_involvements_per_90" : "float64",
+            "goals_conceded" : "int64",
+            "goals_conceded_per_90" : "float64",
+            "expected_goals_conceded" : "float64",
+            "expected_goals_conceded_per_90" : "float64",
+            "saves" : "int64",
+            "saves_per_90" : "float64",
+            "clean_sheets" : "int64",
+            "clean_sheets_per_90" : "float64",
+            "xgi_to_cost_ratio" : "float64",
+            "xpoints" : "float64",
+            "xpoints_to_cost_ratio" : "float64",
+            "performance_vs_xg" : "float64",
+            "performance_vs_xa" : "float64",
+            "performance_vs_xgc" : "float64",
+            "id" : "int64"
+
+        },
+
+        "na_columns" : {
+
+            "now_cost" : 0,
+            "total_points" : 0,
+            "minutes" : 0,
+            "90s" : 0,
+            "starts" : 0,
+            "goals_scored" : 0,
+            "expected_goals" : 0,
+            "expected_goals_per_90" : 0,
+            "assists" : 0,
+            "expected_assists" : 0,
+            "expected_assists_per_90" : 0,
+            "goal_involvements" : 0,
+            "expected_goal_involvements" : 0,
+            "expected_goal_involvements_per_90" : 0,
+            "goals_conceded" : 0,
+            "goals_conceded_per_90" : 0,
+            "expected_goals_conceded" : 0,
+            "expected_goals_conceded_per_90" : 0,
+            "saves" : 0,
+            "saves_per_90" : 0,
+            "clean_sheets" : 0,
+            "clean_sheets_per_90" : 0,
+            "xgi_to_cost_ratio" : 0,
+            "xpoints" : 0,
+            "xpoints_to_cost_ratio" : 0,
+            "performance_vs_xg" : 0,
+            "performance_vs_xa" : 0,
+            "performance_vs_xgc" : 0
+
+        }
+
+    },
+
+
+    "current_gameweek_config" : {
+
+        "before_calculations" : {
+
             "total_points" : "int64",
             "minutes" : "int64",
             "starts" : "int64",
