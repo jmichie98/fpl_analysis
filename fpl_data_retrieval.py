@@ -162,6 +162,15 @@ for gameweek in range(no_of_gameweeks):
 ##### RETIRIEVING LIVE GW DATA #####
 # Repeating the process performed in the above block, but for the most recent gameweek.
 current_gameweek = no_of_gameweeks + 1
+
+if current_gameweek > 38:
+    
+    print("---------- SCRIPT COMPLETED ----------")
+    exit()
+
+else:
+    pass
+
 current_gameweek_data = requests.get(f"https://fantasy.premierleague.com/api/event/{current_gameweek}/live/")
 
 current_gameweek_data_dict = current_gameweek_data.json()
