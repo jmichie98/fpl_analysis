@@ -1,117 +1,160 @@
 import pandas as pd
-import mysql.connector
-from mysql.connector import Error
+import os
 
 
-def double_gameweek_processing(dictionary_1, dictionary_2, config_dictionary):
-    '''In the event that a player has played two games in a single gameweek, this function combines data from the two matches 
-    and generates a signle dataframe for the gameweek in question.
-    \n
-    \n Arguments:
-    \n dictionary_1 (dict): The dictionary containing player performance data from the first match of the double gameweek.
-    \n dictionary_2 (dict): The dictionary containing player performance data from the second match of the double gameweek.
-    \n config_dictionary (dict): The dictionary which contains the dtype mapping for the dataframes created by this function.
-    \n
-    \n Returns:
-    \n combined_df (DataFrame): Dataframe containing combined data for the two matches in the gameweek.'''
-
-
-    column_dtype_mapping = config_dictionary["previous_gameweeks_config"]["double_gameweek_processing"]
-    columns_to_combine = column_dtype_mapping.keys()
+def pathfinder(season: str) -> tuple[str, str]:
     
-    df1 = pd.json_normalize(dictionary_1)
-    df2 = pd.json_normalize(dictionary_2)
+    '''
+    Generating the file paths required for the script
+    
+    Args:
+        season: A string indicating the current Premier League season in the format 'YYYY-YY' (e.g. '2024-25')
 
-    df1 = df1.astype(column_dtype_mapping)
-    df2 = df2.astype(column_dtype_mapping)
+    Returns:
+        CONFIG_JSON_FILEPATH: The full filepath to the fpl_config.json file
+        GAMEWEEK_FILES_DIRECTORY: The full filepath to the folder containing the gameweek files for the current season 
+    '''
 
-    for column in columns_to_combine:
+    CONFIG_JSON_FILEPATH = os.path.join(
+        os.path.dirname(__file__).replace('functions', ''),
+        'configuration',
+        'fpl_config.json'
+    )
 
-        df1[column] = df1[column] + df2[column]
+    GAMEWEEK_FILES_DIRECTORY = os.path.join(
+        os.path.dirname(__file__).replace('functions', ''),
+        'player_data',
+        season
+    )
 
-    combined_df = df1.copy()
-
-    return combined_df
-
-
-def convert_to_string(code, config_category, config_file):
-    '''Returns human-readable 'team' or 'position' values from appropriate config dictionary. Defined as a function so that it 
-    can be used in a lambda expression.
-    \n
-    \n Arguments:
-    \n code (str): The numeric code used in the FPL API to refer to a player or team, converted into a string.
-    \n config_category (str): The corresponding player/team dictionary in the config file.
-    \n config_file (dict): The config file itself.
-    \n
-    \n Returns:
-    \n Readable version of the player or team code.'''
-
-    return config_file[config_category][code]
+    return (
+        CONFIG_JSON_FILEPATH,
+        GAMEWEEK_FILES_DIRECTORY
+    )
 
 
-def performance_metric_calculations(dataframe):
-    '''Adds a number of calculated fields to the gameweek dataframe.
-    \n
-    \n Arguments:
-    \n dataframe (DataFrame): The merged dataframe containing player data for a given gameweek.
-    \n
-    \n Returns:
-    \n No return, function simply adds columns to the existing dataframe.'''
 
-    # Calculating per 90 values for single gameweek dataframes
-    dataframe["goal_involvements"] = dataframe["goals_scored"] + dataframe["assists"]
-    dataframe["90s"] = dataframe["minutes"] / 90
-    dataframe["expected_goals_per_90"] = dataframe["expected_goals"] / dataframe["90s"]
-    dataframe["expected_assists_per_90"] = dataframe["expected_assists"] / dataframe["90s"]
-    dataframe["expected_goal_involvements"] = dataframe["expected_goals"] + dataframe["expected_assists"]
-    dataframe["expected_goal_involvements_per_90"] = dataframe["expected_goal_involvements"] / dataframe["90s"]
-    dataframe["goals_conceded_per_90"] = dataframe["goals_conceded"] / dataframe["90s"]
-    dataframe["expected_goals_conceded_per_90"] = dataframe["expected_goals_conceded"] / dataframe["90s"]
-    dataframe["saves_per_90"] = dataframe["saves"] / dataframe["90s"]
-    dataframe["clean_sheets_per_90"] = dataframe["clean_sheets"] / dataframe["90s"]
-    dataframe["xgi_to_cost_ratio"] = (dataframe["expected_goal_involvements"] * 100) / dataframe["now_cost"]
+def map_column_values_to_string(
+        general_info_dict: dict,
+        dataframe: pd.DataFrame
+    ):
 
-    # Calculating a player's performance against their xG, xA and xGC stats.
-    dataframe["performance_vs_xg"] = dataframe["goals_scored"] - dataframe["expected_goals"]
-    dataframe["performance_vs_xa"] = dataframe["assists"] - dataframe["expected_assists"]
-    dataframe["performance_vs_xgc"] = dataframe["expected_goals_conceded"] - dataframe["goals_conceded"]
+    # Creating a team name mapper and assigning it to the 'team' column of the player_details_df
+    team_name_mapper = {}
+
+    for team in general_info_dict['teams']:
+
+        team_dict = {team['id'] : team['name']}
+        team_name_mapper.update(team_dict)
+
+    dataframe['team_name'] = dataframe['team'].apply(
+        
+        lambda row: map_string_to_int(
+            code= row,
+            mapper= team_name_mapper
+        )
+    )
+
+    dataframe = dataframe.drop(
+        labels= 'team',
+        axis= 1
+    )
+
+    del team_name_mapper, team_dict
+
+    # Creating a position mapper and assigning it to the 'element_type' column of the player_details_df
+    position_mapper = {}
+
+    for position in general_info_dict['element_types']:
+        position_dict = {position['id'] : position['singular_name_short']}
+        position_mapper.update(position_dict)
+
+    dataframe['position'] = dataframe['element_type'].apply(
+        
+        lambda row: map_string_to_int(
+            code= row,
+            mapper= position_mapper
+        )
+    )
+
+    dataframe = dataframe.drop(
+        labels= 'element_type',
+        axis= 1
+    )
+
+    del position_mapper, position_dict
+
+    return dataframe
+
+
+
+def map_string_to_int(
+        code: int, 
+        mapper: dict) -> str:
+    
+    '''
+    Returns full 'team' or 'position' strings according to the FPL mapper.
+
+    Args:
+        code: The numeric code used in the FPL API to refer to a player's position or team.
+        mapper: The mapper used to convert the integers into strings.
+    
+    Returns:
+        coverted_string: The player's position or team code.
+    '''
+
+    converted_string = mapper[code]
+
+    return converted_string
+
+
+
+def attacking_score_calculation(dataframe: pd.DataFrame) -> pd.DataFrame:
+    '''
+    Adds a number of calculated fields to the gameweek dataframe.
+    
+    Args:
+        dataframe: The merged dataframe containing player data for a given gameweek.
+
+    Returns:
+        dataframe: The full_gameweek_df with an added column containing player 'Expected Points' figures
+    '''
 
     # Calculation a player's 'expected points' based on their attacking output.
-    dataframe["minutes_xpoints"] = dataframe["90s"] * 2
-    dataframe["goal_xpoints"] = dataframe.apply(goal_values, axis= 1)
-    dataframe["assist_xpoints"] = dataframe["expected_assists"] * 3
-    dataframe["xpoints"] = dataframe["minutes_xpoints"] + dataframe["goal_xpoints"] + dataframe["assist_xpoints"]
-    dataframe["xpoints_to_cost_ratio"] = dataframe["xpoints"] / dataframe["now_cost"]
+    dataframe['minutes_score'] = (dataframe['minutes'] / 90) * 2
+    dataframe['xgoals_score'] = dataframe.apply(goal_values, axis= 1)
+    dataframe['xassist_score'] = dataframe['expected_assists'] * 3
+
+    dataframe = dataframe.astype(
+        {
+            'minutes_score' : 'float64', 
+            'xgoals_score' : 'float64', 
+            'xassist_score' : 'float64'
+        }
+    )
+
+    dataframe['attacking_score'] = dataframe['minutes_score'] + dataframe['xgoals_score'] + dataframe['xassist_score']
+    dataframe['attacking_score'] = dataframe['attacking_score'].round(2)
+    dataframe = dataframe.drop(['minutes_score', 'xgoals_score', 'xassist_score'], axis= 1)
+
+    return dataframe
 
 
-def goal_values(row):
-    '''Function used to convert a player's xG into an 'expected points' value. Called in performance_metric_calculations 
-    function.'''
 
-    if row["position"] == "FWD":
-        return row["expected_goals"] * 4
+def goal_values(row: pd.Series) -> int:
+    '''
+    Converts a player's xG into an 'expected points' value, based on the points a player in their position would score per goal \
+    in FPL.
 
-    elif row["position"] == "MID":
-        return row["expected_goals"] * 5
+    Args:
+        row: The player's performance data for a given gameweek.
+    '''
+
+    if row['position'] == 'FWD':
+        return row['expected_goals'] * 4
+
+    elif row['position'] == 'MID':
+        return row['expected_goals'] * 5
 
     else:
-        return row["expected_goals"] * 6
-    
-
-def sql_connection(host, user, passwd, database = None):
-    
-    connection = None
-
-    try:
-        connection = mysql.connector.connect(
-            host=host,
-            user=user,
-            passwd=passwd,
-            database=database
-        )
-        print("MySQL Database connection successful")
-
-    except Error as err:
-        print(f"Error: '{err}'")
-
-    return connection
+        return row['expected_goals'] * 6
