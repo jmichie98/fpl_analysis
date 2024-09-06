@@ -17,7 +17,7 @@ if api_return_code != '200':
 
     print(f"General Info API request failed, return code: {api_return_code}")
     print("********** SCRIPT ENDED ON ERROR **********")
-    exit()
+    exit(1)
 
 else:
 
@@ -59,7 +59,7 @@ except Exception as e:
 
     print(f"Error encountered while reading in config file: {e}")
     print("********** SCRIPT ENDED ON ERROR **********")
-    exit()
+    exit(1)
 
 
 
@@ -89,14 +89,25 @@ if no_gameweeks_completed_yet:
 
     print('No gameweeks have been completed yet')
     print("---------- SCRIPT COMPLETED ----------")
-    exit()
+    exit(0)
 
 else:
     pass
 
-del gameweek, current_gameweek
+del gameweek, current_gameweek, no_gameweeks_completed_yet
 
 
+
+# Create a directory to store the seasons data files if it doesn't exist already
+season_directory_exists = os.path.exists(GAMEWEEK_FILES_DIRECTORY)
+
+if not season_directory_exists:
+
+    print(f'Creating directory for {current_season} season data files')
+    os.makedirs(GAMEWEEK_FILES_DIRECTORY)
+
+else:
+    pass
 
 # Determine which gameweeks need to be processed
 missing_gameweeks_list = [
@@ -106,17 +117,18 @@ missing_gameweeks_list = [
 
 if not missing_gameweeks_list:
 
-    print('Files have already been generated for all completed gameweeks')
+    print('Data files have already been generated for all completed gameweeks')
     print("---------- SCRIPT COMPLETED ----------")
-    exit()
+    exit(0)
 
 else:
-    pass
+    print(f'Data files have not been generated for gameweek(s): {missing_gameweeks_list}')
 
 
 
 # Retrieve player data for the required gameweeks from the API
 gameweek_dictionary_list = []
+print('Retrieving player data for the required gameweek(s) from the FPL API')
 
 for gameweek_number in missing_gameweeks_list:
 
@@ -126,7 +138,7 @@ for gameweek_number in missing_gameweeks_list:
 
     if api_return_code != '200':
 
-        ### I can probably raise an exception here and continue with the script
+        ### I can probably raise an exception here and continue with the script and remove the 'failed gw' from the list of gws to process.
 
         print(f'API call for last completed gameweek unsuccessful. Return code: {api_return_code}')
         print("********** SCRIPT ENDED ON ERROR **********")
@@ -135,10 +147,9 @@ for gameweek_number in missing_gameweeks_list:
     else:
 
         gameweek_dict = gameweek_data.json()
-        # gameweek_dict[f'gameweek_{gameweek_number}'] = gameweek_dict.pop('elements')
         gameweek_dictionary_list.append(gameweek_dict)
 
-    del api_return_code, api_endpoint_url, gameweek_data, gameweek_dict
+    del api_return_code, api_endpoint_url, gameweek_data, gameweek_dict, gameweek_number
 
 
 
@@ -156,6 +167,8 @@ player_details_df = fpl.map_column_values_to_string(
     general_info_dict= general_fpl_info,
     dataframe= player_details_df
 )
+
+del general_fpl_info
 
 
 # Convert gameweek dictionary into dataframe and merge with player details
@@ -178,6 +191,8 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
         on= 'id'
     )
 
+    del player_dataframe_list
+
     # Clean dataframe and write to csv
     full_gameweek_df = full_gameweek_df.drop(
         labels=['bonus', 'bps', 'in_dreamteam', 'yellow_cards', 'red_cards', 'own_goals'], 
@@ -186,7 +201,7 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
 
     full_gameweek_df = full_gameweek_df.astype(config['column_dtypes_mapper'])
     full_gameweek_df['now_cost'] = full_gameweek_df['now_cost'] / 10
-    full_gameweek_df = fpl.xpoints_calculation(full_gameweek_df)
+    full_gameweek_df = fpl.attacking_score_calculation(full_gameweek_df)
     full_gameweek_df = full_gameweek_df[config['column_reordering_list']]
 
     csv_filepath = os.path.join(
@@ -201,15 +216,17 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
         index= False
     )
 
-    del player_id, player_data_df
+    del player_data_df, player_id
 
 ### Double gameweeks will likely break this for loop, but I don't know exactly how, will need to revisit later in the season
+### Also, consider whether it would just be better to do the API request and processing one gameweek at a time (otherwise we
+### could have up to 38 gameweek dicts loaded in at one time for no particular reason)
 
 print("Database successfully created.")
 print("---------- SCRIPT COMPLETED ----------")
 
 
-# # Calculations I've removed from the datbases (manually set up in Tableau)
+# # Calculations I've removed from the databases (need to manually set up in Tableau)
 # dataframe["xpoints_to_cost_ratio"] = dataframe["xpoints"] / dataframe["now_cost"]
 
 # dataframe["goal_involvements"] = dataframe["goals_scored"] + dataframe["assists"]

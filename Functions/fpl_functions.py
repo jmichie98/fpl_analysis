@@ -3,6 +3,7 @@ import os
 
 
 def pathfinder(season: str) -> tuple[str, str]:
+    
     '''
     Generating the file paths required for the script
     
@@ -108,7 +109,7 @@ def map_string_to_int(
 
 
 
-def xpoints_calculation(dataframe: pd.DataFrame) -> pd.DataFrame:
+def attacking_score_calculation(dataframe: pd.DataFrame) -> pd.DataFrame:
     '''
     Adds a number of calculated fields to the gameweek dataframe.
     
@@ -120,20 +121,21 @@ def xpoints_calculation(dataframe: pd.DataFrame) -> pd.DataFrame:
     '''
 
     # Calculation a player's 'expected points' based on their attacking output.
-    dataframe['minutes_xpoints'] = (dataframe['minutes'] / 90) * 2
-    dataframe['goal_xpoints'] = dataframe.apply(goal_values, axis= 1)
-    dataframe['assist_xpoints'] = dataframe['expected_assists'] * 3
+    dataframe['minutes_score'] = (dataframe['minutes'] / 90) * 2
+    dataframe['xgoals_score'] = dataframe.apply(goal_values, axis= 1)
+    dataframe['xassist_score'] = dataframe['expected_assists'] * 3
 
     dataframe = dataframe.astype(
         {
-            'minutes_xpoints' : 'float64', 
-            'goal_xpoints' : 'float64', 
-            'assist_xpoints' : 'float64'
+            'minutes_score' : 'float64', 
+            'xgoals_score' : 'float64', 
+            'xassist_score' : 'float64'
         }
     )
 
-    dataframe['xpoints'] = dataframe['minutes_xpoints'] + dataframe['goal_xpoints'] + dataframe['assist_xpoints']
-    dataframe = dataframe.drop(['minutes_xpoints', 'goal_xpoints', 'assist_xpoints'], axis= 1)
+    dataframe['attacking_score'] = dataframe['minutes_score'] + dataframe['xgoals_score'] + dataframe['xassist_score']
+    dataframe['attacking_score'] = dataframe['attacking_score'].round(2)
+    dataframe = dataframe.drop(['minutes_score', 'xgoals_score', 'xassist_score'], axis= 1)
 
     return dataframe
 

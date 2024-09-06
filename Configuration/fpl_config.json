@@ -52,7 +52,7 @@
         "assists",
         "expected_goals",
         "expected_assists", 
-        "xpoints",
+        "attacking_score",
         "expected_goal_involvements", 
         "goals_conceded", 
         "clean_sheets",
