@@ -6,7 +6,7 @@ from datetime import datetime
 import functions.fpl_functions as fpl
 
 
-print("---------- SCRIPT STARTED ----------")
+print('---------- SCRIPT STARTED ----------')
 
 
 # Retrieve general information about the FPL season from the API
@@ -15,13 +15,13 @@ api_return_code = str(general_fpl_info)[-5:-2]
 
 if api_return_code != '200':
 
-    print(f"General Info API request failed, return code: {api_return_code}")
-    print("********** SCRIPT ENDED ON ERROR **********")
+    print(f'General Info API request failed, return code: {api_return_code}')
+    print('********** SCRIPT ENDED ON ERROR **********')
     exit(1)
 
 else:
 
-    print("General Info API request successful")
+    print('General Info API request successful')
     general_fpl_info = general_fpl_info.json()
 
     pass
@@ -57,8 +57,8 @@ try:
 
 except Exception as e:
 
-    print(f"Error encountered while reading in config file: {e}")
-    print("********** SCRIPT ENDED ON ERROR **********")
+    print(f'Error encountered while reading in config file: {e}')
+    print('********** SCRIPT ENDED ON ERROR **********')
     exit(1)
 
 
@@ -88,7 +88,7 @@ for gameweek in general_fpl_info['events']:
 if no_gameweeks_completed_yet:
 
     print('No gameweeks have been completed yet')
-    print("---------- SCRIPT COMPLETED ----------")
+    print('---------- SCRIPT COMPLETED ----------')
     exit(0)
 
 else:
@@ -118,7 +118,7 @@ missing_gameweeks_list = [
 if not missing_gameweeks_list:
 
     print('Data files have already been generated for all completed gameweeks')
-    print("---------- SCRIPT COMPLETED ----------")
+    print('---------- SCRIPT COMPLETED ----------')
     exit(0)
 
 else:
@@ -141,7 +141,7 @@ for gameweek_number in missing_gameweeks_list:
         ### I can probably raise an exception here and continue with the script and remove the 'failed gw' from the list of gws to process.
 
         print(f'API call for last completed gameweek unsuccessful. Return code: {api_return_code}')
-        print("********** SCRIPT ENDED ON ERROR **********")
+        print('********** SCRIPT ENDED ON ERROR **********')
         exit(1)
 
     else:
@@ -200,14 +200,11 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
     )
 
     full_gameweek_df = full_gameweek_df.astype(config['column_dtypes_mapper'])
-    full_gameweek_df['now_cost'] = full_gameweek_df['now_cost'] / 10
     full_gameweek_df = fpl.attacking_score_calculation(full_gameweek_df)
     full_gameweek_df = full_gameweek_df[config['column_reordering_list']]
 
     csv_filepath = os.path.join(
-        os.path.dirname(__file__), 
-        'player_data', 
-        current_season, 
+        GAMEWEEK_FILES_DIRECTORY,
         f'Gameweek_{gameweek}.csv'
     )
 
@@ -220,27 +217,7 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
 
 ### Double gameweeks will likely break this for loop, but I don't know exactly how, will need to revisit later in the season
 ### Also, consider whether it would just be better to do the API request and processing one gameweek at a time (otherwise we
-### could have up to 38 gameweek dicts loaded in at one time for no particular reason)
+### could have up to 38 gameweek dicts loaded in at one time)
 
-print("Database successfully created.")
-print("---------- SCRIPT COMPLETED ----------")
-
-
-# # Calculations I've removed from the databases (need to manually set up in Tableau)
-# dataframe["xpoints_to_cost_ratio"] = dataframe["xpoints"] / dataframe["now_cost"]
-
-# dataframe["goal_involvements"] = dataframe["goals_scored"] + dataframe["assists"]
-# dataframe["90s"] = dataframe["minutes"] / 90
-# dataframe["expected_goals_per_90"] = dataframe["expected_goals"] / dataframe["90s"]
-# dataframe["expected_assists_per_90"] = dataframe["expected_assists"] / dataframe["90s"]
-# dataframe["expected_goal_involvements"] = dataframe["expected_goals"] + dataframe["expected_assists"]
-# dataframe["expected_goal_involvements_per_90"] = dataframe["expected_goal_involvements"] / dataframe["90s"]
-# dataframe["goals_conceded_per_90"] = dataframe["goals_conceded"] / dataframe["90s"]
-# dataframe["expected_goals_conceded_per_90"] = dataframe["expected_goals_conceded"] / dataframe["90s"]
-# dataframe["saves_per_90"] = dataframe["saves"] / dataframe["90s"]
-# dataframe["clean_sheets_per_90"] = dataframe["clean_sheets"] / dataframe["90s"]
-# dataframe["xgi_to_cost_ratio"] = (dataframe["expected_goal_involvements"] * 100) / dataframe["now_cost"]
-
-# dataframe["performance_vs_xg"] = dataframe["goals_scored"] - dataframe["expected_goals"]
-# dataframe["performance_vs_xa"] = dataframe["assists"] - dataframe["expected_assists"]
-# dataframe["performance_vs_xgc"] = dataframe["expected_goals_conceded"] - dataframe["goals_conceded"]
+print('Database successfully created.')
+print('---------- SCRIPT COMPLETED ----------')

@@ -23,7 +23,7 @@ def pathfinder(season: str) -> tuple[str, str]:
 
     GAMEWEEK_FILES_DIRECTORY = os.path.join(
         os.path.dirname(__file__).replace('functions', ''),
-        'player_data',
+        'database_files',
         season
     )
 
