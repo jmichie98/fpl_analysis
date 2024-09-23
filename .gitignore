@@ -161,7 +161,7 @@ cython_debug/
 
 # ADDITIONS
 !Authorisation/.gitkeep
-player_data/*
-!player_data/.gitkeep
+database_files/*
+!database_files/.gitkeep
 !venv/.gitkeep
 .DS_Store
