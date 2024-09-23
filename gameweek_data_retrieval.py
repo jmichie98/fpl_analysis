@@ -126,8 +126,26 @@ else:
 
 
 
+# Retrieve player details from the general_fpl_info dictionary, ahead of a dataframe join at the end of gameweek processing
+player_details_df = pd.json_normalize(general_fpl_info['elements'])
+player_details_df = player_details_df[config['player_details_columns_list']]
+player_details_df['full_name'] = player_details_df['first_name'] + ' ' + player_details_df['second_name']
+
+player_details_df = player_details_df.drop(
+    labels= ['first_name', 'second_name'],
+    axis= 1
+)
+
+player_details_df = fpl.map_column_values_to_string(
+    general_info_dict= general_fpl_info,
+    dataframe= player_details_df
+)
+
+del general_fpl_info
+
+
+
 # Retrieve player data for the required gameweeks from the API
-gameweek_dictionary_list = []
 print('Retrieving player data for the required gameweek(s) from the FPL API')
 
 for gameweek_number in missing_gameweeks_list:
@@ -147,33 +165,10 @@ for gameweek_number in missing_gameweeks_list:
     else:
 
         gameweek_dict = gameweek_data.json()
-        gameweek_dictionary_list.append(gameweek_dict)
 
-    del api_return_code, api_endpoint_url, gameweek_data, gameweek_dict, gameweek_number
+    del api_return_code, api_endpoint_url, gameweek_data
 
-
-
-# Retrieve player details from the general_fpl_info dictionary, ahead of a dataframe join at the end of gameweek processing
-player_details_df = pd.json_normalize(general_fpl_info['elements'])
-player_details_df = player_details_df[config['player_details_columns_list']]
-player_details_df['full_name'] = player_details_df['first_name'] + ' ' + player_details_df['second_name']
-
-player_details_df = player_details_df.drop(
-    labels= ['first_name', 'second_name'],
-    axis= 1
-)
-
-player_details_df = fpl.map_column_values_to_string(
-    general_info_dict= general_fpl_info,
-    dataframe= player_details_df
-)
-
-del general_fpl_info
-
-
-# Convert gameweek dictionary into dataframe and merge with player details
-for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_list):
-
+    # Convert gameweek dictionary into dataframe and merge with player details
     player_dataframe_list = []
 
     for player in range(0, len(gameweek_dict['elements'])):
@@ -205,7 +200,7 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
 
     csv_filepath = os.path.join(
         GAMEWEEK_FILES_DIRECTORY,
-        f'Gameweek_{gameweek}.csv'
+        f'Gameweek_{gameweek_number}.csv'
     )
 
     full_gameweek_df.to_csv(
@@ -216,8 +211,6 @@ for gameweek_dict, gameweek in zip(gameweek_dictionary_list, missing_gameweeks_l
     del player_data_df, player_id
 
 ### Double gameweeks will likely break this for loop, but I don't know exactly how, will need to revisit later in the season
-### Also, consider whether it would just be better to do the API request and processing one gameweek at a time (otherwise we
-### could have up to 38 gameweek dicts loaded in at one time)
 
-print('Database successfully created.')
+print('Gameweek file(s) successfully created.')
 print('---------- SCRIPT COMPLETED ----------')
