@@ -63,6 +63,26 @@
         "ict_index", 
         "id"
     
-    ]
+    ],
+
+    "columns_to_drop_list" : [
+
+        "bonus", 
+        "bps", 
+        "in_dreamteam", 
+        "yellow_cards", 
+        "red_cards", 
+        "own_goals"
+
+    ],
+
+    "goal_values" : {
+
+        "GKP" : 15,
+        "DEF" : 6,
+        "MID" : 5,
+        "FWD" : 4
+        
+    }
 
 }
