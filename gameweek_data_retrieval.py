@@ -1,43 +1,49 @@
-import pandas as pd
-import requests
-import json
 import os
+import json
+import requests
+import pandas as pd
 from datetime import datetime
 import functions.fpl_functions as fpl
+from functions.fpl_functions import APIError
 
 
 print('---------- SCRIPT STARTED ----------')
 
 
 # Retrieve general information about the FPL season from the API
-general_fpl_info = requests.get('https://fantasy.premierleague.com/api/bootstrap-static/')
-api_return_code = str(general_fpl_info)[-5:-2]
+print('Retrieving general information about the current FPL season...')
 
-if api_return_code != '200':
+try:
+    general_fpl_info_dict = fpl.retrieve_general_data()
 
-    print(f'General Info API request failed, return code: {api_return_code}')
+except APIError as api_error:
+
+    print(api_error)
     print('********** SCRIPT ENDED ON ERROR **********')
     exit(1)
 
-else:
-
-    print('General Info API request successful')
-    general_fpl_info = general_fpl_info.json()
-
-    pass
-
-del api_return_code
+except Exception as e:
+    print(f'Unexpected error encountered while retrieving general FPL data - {e}')
 
 
 
 # Determine the current season
-season_start_date_str = general_fpl_info['events'][0]['deadline_time']
-season_start_year = datetime.strptime(season_start_date_str, '%Y-%m-%dT%H:%M:%SZ').year
-season_end_year = season_start_year + 1
+print('Determining the current Premier League season...')
 
-current_season = f'{season_start_year}-{str(season_end_year)[-2:]}'
+try:
+    current_season = fpl.determine_current_season(general_fpl_info_dict= general_fpl_info_dict)
 
-del season_start_date_str, season_start_year, season_end_year
+except ValueError as value_error:
+
+    print(value_error)
+    print('********** SCRIPT ENDED ON ERROR **********')
+    exit(1)
+
+except Exception as e:
+
+    print(f'Unexpected error encountered while determining the current Premier League season - {e}')
+    print('********** SCRIPT ENDED ON ERROR **********')
+    exit(1)
 
 
 
@@ -50,6 +56,7 @@ del season_start_date_str, season_start_year, season_end_year
 
 
 # Read in config file
+print('Reading in config file...')
 try:
 
     with open(CONFIG_JSON_FILEPATH) as temporary_file:
@@ -65,36 +72,21 @@ except Exception as e:
 
 # Determine the current gameweek
 print('Checking which FPL gameweek has been most recently completed...')
-no_gameweeks_completed_yet = True
 
-for gameweek in general_fpl_info['events']:
+try:
+    last_completed_gameweek = fpl.find_last_completed_gameweek(general_fpl_info_dict= general_fpl_info_dict)
 
-    if not gameweek['finished']:
+except Exception as e:
 
-        no_gameweeks_completed_yet = False
+    print(f'Error encountered while identifying last completed gameweek: {e}')
+    print('********** SCRIPT ENDED ON ERROR **********')
+    exit(1)
 
-        current_gameweek = gameweek['name']
-        current_gameweek_number = int(current_gameweek[-2:])
-        last_completed_gameweek_number = current_gameweek_number - 1
-        last_completed_gameweek_string = f'Gameweek {last_completed_gameweek_number}'
-
-        print(f'{last_completed_gameweek_string} is the most recently completed gameweek.')
-
-        break
-
-    else:
-        continue
-
-if no_gameweeks_completed_yet:
+if not last_completed_gameweek:
 
     print('No gameweeks have been completed yet')
     print('---------- SCRIPT COMPLETED ----------')
     exit(0)
-
-else:
-    pass
-
-del gameweek, current_gameweek, no_gameweeks_completed_yet
 
 
 
@@ -109,54 +101,55 @@ if not season_directory_exists:
 else:
     pass
 
+
+
 # Determine which gameweeks need to be processed
 missing_gameweeks_list = [
-    x for x in range(1, current_gameweek_number) 
+    x for x in range(1, last_completed_gameweek + 1) 
     if f'Gameweek_{x}.csv' not in os.listdir(GAMEWEEK_FILES_DIRECTORY)
 ]
 
 if not missing_gameweeks_list:
 
-    print('Data files have already been generated for all completed gameweeks')
+    print('Data files have already been generated for all completed gameweeks.')
     print('---------- SCRIPT COMPLETED ----------')
     exit(0)
 
 else:
-    print(f'Data files have not been generated for gameweek(s): {missing_gameweeks_list}')
+    print(f'Data files have not been generated for gameweek(s): {missing_gameweeks_list}.')
 
 
 
 # Retrieve player details from the general_fpl_info dictionary, ahead of a dataframe join at the end of gameweek processing
-player_details_df = pd.json_normalize(general_fpl_info['elements'])
-player_details_df = player_details_df[config['player_details_columns_list']]
-player_details_df['full_name'] = player_details_df['first_name'] + ' ' + player_details_df['second_name']
+try:
 
-player_details_df = player_details_df.drop(
-    labels= ['first_name', 'second_name'],
-    axis= 1
-)
+    print('Retrieving general details for each player...')
+    player_details_df = fpl.prepare_player_details_df(
+        general_fpl_info_dict= general_fpl_info_dict,
+        config_dict= config
+    )
 
-player_details_df = fpl.map_column_values_to_string(
-    general_info_dict= general_fpl_info,
-    dataframe= player_details_df
-)
+except Exception as e:
 
-del general_fpl_info
+    print(f'Error encountered while retrieving player details: {e}')
+    print('********** SCRIPT ENDED ON ERROR **********')
+    exit(1)
 
 
 
-# Retrieve player data for the required gameweeks from the API
+# Retrieve player data for the required gameweek(s) from the API
 print('Retrieving player data for the required gameweek(s) from the FPL API')
 
 for gameweek_number in missing_gameweeks_list:
 
-    api_endpoint_url = f"https://fantasy.premierleague.com/api/event/{gameweek_number}/live/"
-    gameweek_data = requests.get(api_endpoint_url)
-    api_return_code = str(gameweek_data)[-5:-2]
+    GAMEWEEK_ENDPOINT_URL = f"https://fantasy.premierleague.com/api/event/{gameweek_number}/live/"
+    gameweek_data_response = requests.get(GAMEWEEK_ENDPOINT_URL)
+    api_return_code = gameweek_data_response.status_code
 
-    if api_return_code != '200':
+    if api_return_code != 200:
 
-        ### I can probably raise an exception here and continue with the script and remove the 'failed gw' from the list of gws to process.
+        # NOTE: Can probably add a warning message here, continue with the script and remove the 'failed gw' from the 
+        #       list of gws to process.
 
         print(f'API call for last completed gameweek unsuccessful. Return code: {api_return_code}')
         print('********** SCRIPT ENDED ON ERROR **********')
@@ -164,14 +157,13 @@ for gameweek_number in missing_gameweeks_list:
 
     else:
 
-        gameweek_dict = gameweek_data.json()
-
-    del api_return_code, api_endpoint_url, gameweek_data
+        gameweek_dict = gameweek_data_response.json()
 
     # Convert gameweek dictionary into dataframe and merge with player details
     player_dataframe_list = []
+    number_of_players = len(gameweek_dict['elements'])
 
-    for player in range(0, len(gameweek_dict['elements'])):
+    for player in range(0, number_of_players):
 
         player_id = gameweek_dict['elements'][player]['id']
         player_data_df = pd.json_normalize(gameweek_dict['elements'][player]['stats'])
@@ -186,16 +178,14 @@ for gameweek_number in missing_gameweeks_list:
         on= 'id'
     )
 
-    del player_dataframe_list
-
     # Clean dataframe and write to csv
     full_gameweek_df = full_gameweek_df.drop(
-        labels=['bonus', 'bps', 'in_dreamteam', 'yellow_cards', 'red_cards', 'own_goals'], 
+        labels= config['columns_to_drop_list'], 
         axis= 1
     )
 
     full_gameweek_df = full_gameweek_df.astype(config['column_dtypes_mapper'])
-    full_gameweek_df = fpl.attacking_score_calculation(full_gameweek_df)
+    full_gameweek_df = fpl.attacking_score_calculation(full_gameweek_df, config)
     full_gameweek_df = full_gameweek_df[config['column_reordering_list']]
 
     csv_filepath = os.path.join(
@@ -208,9 +198,7 @@ for gameweek_number in missing_gameweeks_list:
         index= False
     )
 
-    del player_data_df, player_id
-
-### Double gameweeks will likely break this for loop, but I don't know exactly how, will need to revisit later in the season
+### Double gameweeks will likely break this for-loop, but I don't know exactly how, will need to revisit later in the season
 
 print('Gameweek file(s) successfully created.')
 print('---------- SCRIPT COMPLETED ----------')
