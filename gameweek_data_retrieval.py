@@ -184,6 +184,9 @@ for gameweek_number in missing_gameweeks_list:
         axis= 1
     )
 
+    # Drop managers from dataframe
+    full_gameweek_df = full_gameweek_df[full_gameweek_df['position'] != 'MNG']
+
     full_gameweek_df = full_gameweek_df.astype(config['column_dtypes_mapper'])
     full_gameweek_df = fpl.attacking_score_calculation(full_gameweek_df, config)
     full_gameweek_df = full_gameweek_df[config['column_reordering_list']]
